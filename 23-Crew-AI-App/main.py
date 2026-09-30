@@ -1,177 +1,124 @@
-# ============================================================
-# COURSE CONTENT GENERATOR - MULTI AGENT SYSTEM
-# Using CrewAI
-# ============================================================
+from crewai import Agent, Task, Crew, Process, LLM
+from dotenv import load_dotenv
+import os
 
-from crewai import Agent, Task, Crew, Process
+# ==========================================
+# LOAD API KEY
+# ==========================================
 
+load_dotenv()
+api_key = os.getenv("OPENAI_API_KEY")
 
-# ============================================================
-# 1. GET COURSE NAME FROM USER
-# ============================================================
+def generate_course_content(course_name):
 
-course_name = input("Enter Course Name: ")
+    llm = LLM(
+        model = "openai/gpt-6-astra",
+        api_key = api_key
+    )
 
+    research_agent = Agent(
+        role="Course Researcher",
+        goal=(
+            "Research the given course and identify important topics, "
+            "student skills, and practical project ideas."
+        ),
+        backstory=(
+            "You are an experienced technical course researcher."
+        ),
+        llm=llm,
+        verbose=True
+    )
 
-# ============================================================
-# 2. CREATE COURSE RESEARCHER AGENT
-# ============================================================
+    writer_agent = Agent(
+        role="Course Content Writer",
+        goal=(
+            "Create simple, clear and student-friendly course content."
+        ),
+        backstory=(
+            "You are an experienced educational content writer."
+        ),
+        llm=llm,
+        verbose=True
+    )
 
-researcher = Agent(
-    role="Course Researcher",
-    
-    goal="Research the given course and identify important topics, "
-         "student skills, and practical project ideas.",
-    
-    backstory="You are an experienced technical course researcher. "
-              "You analyze a course and identify the most important "
-              "topics that students should learn.",
-    
-    verbose=True
-)
+    research_task = Task(
+        description=f"""
+           Research the course: {course_name}
 
+           Identify the following:
 
-# ============================================================
-# 3. CREATE CONTENT WRITER AGENT
-# ============================================================
+           1. Important topics students should learn
+           2. Skills students will gain after completing the course
+           3. Practical project ideas students can develop
 
-writer = Agent(
-    role="Course Content Writer",
-    
-    goal="Create simple, clear and student-friendly course content "
-         "using the research provided by the Course Researcher.",
-    
-    backstory="You are an experienced educational content writer. "
-              "You convert technical research into simple content "
-              "that students can easily understand.",
-    
-    verbose=True
-)
+           Keep the research simple and useful for students.
 
+           Return the result in a structured format.
+           """,
 
-# ============================================================
-# 4. RESEARCH TASK
-# ============================================================
+        expected_output="""
+           A structured research report containing:
+           - Important Topics
+           - Student Skills
+           - Project Ideas
+           """,
 
-research_task = Task(
-    description=f"""
-    Research the course: {course_name}
+        agent = research_agent
+    )
 
-    Identify the following:
+    writing_task = Task(
+        description=f"""
+            Create course content for the course: {course_name}
 
-    1. Important topics students should learn
-    2. Skills students will gain after completing the course
-    3. Practical project ideas students can develop
+            Use the research result produced by the Course Researcher.
 
-    Keep the research simple and useful for students.
+            Prepare the following:
 
-    Return the result in a structured format.
-    """,
-    
-    expected_output="""
-    A structured research report containing:
+            1. Course Introduction
+               - Explain what the course is
+               - Explain why students should learn it
 
-    - Important Topics
-    - Student Skills
-    - Project Ideas
-    """,
-    
-    agent=researcher
-)
+            2. Course Highlights
+               - List the important topics
+               - List the skills students will learn
+               - Mention practical project ideas
 
+            3. Final Student-Friendly Summary
+               - Give a simple summary of the complete course
+               - Explain what students will be able to do after
+                 completing the course
 
-# ============================================================
-# 5. CONTENT WRITING TASK
-# ============================================================
+            Use simple English.
+            Make the content suitable for students.
+            """,
 
-writing_task = Task(
-    description=f"""
-    Create course content for the course: {course_name}
+        expected_output="""
+            A complete student-friendly course document containing:
 
-    Use the research result produced by the Course Researcher.
+            COURSE INTRODUCTION
 
-    Prepare the following:
+            COURSE HIGHLIGHTS
 
-    1. Course Introduction
-       - Explain what the course is
-       - Explain why students should learn it
+            IMPORTANT TOPICS
 
-    2. Course Highlights
-       - List the important topics
-       - List the skills students will learn
-       - Mention practical project ideas
+            SKILLS STUDENTS WILL LEARN
 
-    3. Final Student-Friendly Summary
-       - Give a simple summary of the complete course
-       - Explain what students will be able to do after
-         completing the course
+            PROJECT IDEAS
 
-    Use simple English.
-    Make the content suitable for students.
-    """,
-    
-    expected_output="""
-    A complete student-friendly course document containing:
+            FINAL STUDENT-FRIENDLY SUMMARY
+            """,
+            agent = writer_agent,
+            context = [research_task]
+    )
 
-    COURSE INTRODUCTION
+    crew = Crew(
+        agents = [research_agent, writer_agent],
+        tasks = [research_task, writing_task],
+        process = Process.sequential,
+        verbose = True
+    )
 
-    COURSE HIGHLIGHTS
+    # execute multi agents
+    result = crew.kickoff()
 
-    IMPORTANT TOPICS
-
-    SKILLS STUDENTS WILL LEARN
-
-    PROJECT IDEAS
-
-    FINAL STUDENT-FRIENDLY SUMMARY
-    """,
-    
-    agent=writer,
-    context=[research_task]
-)
-
-
-# ============================================================
-# 6. CREATE CREW
-# ============================================================
-
-crew = Crew(
-    agents=[
-        researcher,
-        writer
-    ],
-    
-    tasks=[
-        research_task,
-        writing_task
-    ],
-    
-    process=Process.sequential,
-    verbose=True
-)
-
-
-# ============================================================
-# 7. START MULTI AGENT SYSTEM
-# ============================================================
-
-print("\n============================================")
-print("       COURSE CONTENT GENERATOR")
-print("============================================")
-
-result = crew.kickoff()
-
-
-# ============================================================
-# 8. DISPLAY FINAL RESULT
-# ============================================================
-
-print("\n\n============================================")
-print("          GENERATED COURSE CONTENT")
-print("============================================\n")
-
-print(result)
-
-print("\n============================================")
-print("              END OF PROJECT")
-print("============================================")
+    return result
