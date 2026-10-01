@@ -1,0 +1,4 @@
+fastmcp
+streamlit
+python-dotenv
+slack-sdk
