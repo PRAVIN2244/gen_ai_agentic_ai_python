@@ -26,7 +26,7 @@ def get_weather(city:str):
 @mcp.tool
 def send_message(message:str):
     """ Send a message to slack """
-    slack.chat_postMesage(
+    slack.chat_postMessage(
         channel = os.getenv("SLACK_CHANNEL"),
         text = message
     )
@@ -34,7 +34,29 @@ def send_message(message:str):
     return "Message Sent Successfully"
 
 
+@mcp.tool
+def read_messages(limit: int = 10):
+    """Read recent messages from Slack channel"""
 
+    response = slack.conversations_history(
+        channel=os.getenv("SLACK_CHANNEL"),
+        limit=limit
+    )
+
+    messages = response.get("messages", [])
+
+    if not messages:
+        return "No messages found."
+
+    result = []
+
+    for msg in messages:
+        user = msg.get("user", "Unknown User")
+        text = msg.get("text", "")
+
+        result.append(f"{user}: {text}")
+
+    return "\n".join(result)
 
 if __name__ == "__main__":
     mcp.run(
