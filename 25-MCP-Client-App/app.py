@@ -1,39 +1,64 @@
-from fastmcp import Client
+import streamlit as st
+import asyncio
+from mcp_client import get_weather, send_message, read_slack_messages
 
-MCP_SERVER_URL = "http://localhost:8081/mcp"
+st.set_page_config(
+    page_title="MCP Client",
+    page_icon="🤖"
+)
+
+st.title("🤖 MCP Client")
+st.caption("Weather and Slack tools using MCP")
 
 
-async def call_mcp_tool(tool_name: str, arguments: dict):
+weather, send, read = st.tabs(
+    ["🌤️ Weather", "💬 Send Slack", "📖 Read Slack"]
+)
 
-    async with Client(MCP_SERVER_URL) as client:
 
-        result = await client.call_tool(
-            tool_name,
-            arguments
+# Weather
+with weather:
+
+    city = st.text_input("Enter City")
+
+    if st.button("Get Weather"):
+
+        result = asyncio.run(
+            get_weather(city)
         )
 
-        if result.is_error:
-            raise Exception("MCP server returned an error")
-
-        return result.data
+        st.write(result)
 
 
-async def get_weather(city: str):
-    return await call_mcp_tool(
-        "get_weather",
-        {"city": city}
+# Send Slack
+with send:
+
+    message = st.text_area("Enter Message")
+
+    if st.button("Send Message"):
+
+        result = asyncio.run(
+            send_message(message)
+        )
+
+        st.write(result)
+
+
+# Read Slack
+with read:
+
+    limit = st.number_input(
+        "Number of Messages",
+        min_value=1,
+        max_value=100,
+        value=10
     )
 
+    if st.button("Read Messages"):
 
-async def send_slack_message(message: str):
-    return await call_mcp_tool(
-        "send_message",
-        {"message": message}
-    )
+        result = asyncio.run(
+            read_slack_messages(int(limit))
+        )
 
-
-async def read_slack_messages(limit: int = 10):
-    return await call_mcp_tool(
-        "read_messages",
-        {"limit": limit}
-    )
+        print("Result :: ", result)
+        st.write(result)
